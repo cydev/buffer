@@ -23,6 +23,19 @@ func TestByteBuffer_Reset(t *testing.T) {
 	}
 }
 
+func TestPool(t *testing.T) {
+	p := NewPool(128)
+	b := p.Acquire()
+	if _, err := b.Write([]byte("data")); err != nil {
+		t.Fatal(err)
+	}
+	b.Reset()
+	if len(b.B) != 0 {
+		t.Fatal("len(b.B) != 0")
+	}
+	p.Release(b)
+}
+
 func TestByteBufferAcquireReleaseConcurrent(t *testing.T) {
 	testBufferAcquireReleaseConcurrent(t, testByteBufferAcquireRelease)
 }

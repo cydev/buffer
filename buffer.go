@@ -25,6 +25,44 @@ type Buffer struct {
 	B []byte
 }
 
+// Pool wraps sync.Pool for buffer management with different initial sizes.
+// Empty value for Pool is usable.
+type Pool struct {
+	p    sync.Pool
+	Size int
+}
+
+// NewPool creates Pool with defined initial size.
+func NewPool(size int) Pool {
+	return Pool {
+		Size: size,
+	}
+}
+
+// Acquire returns an empty byte buffer from the pool.
+//
+// Acquired byte buffer may be returned to the pool via Release call.
+// This reduces the number of memory allocations required for byte buffer
+// management.
+func (p *Pool) Acquire() *Buffer {
+	v := p.p.Get()
+	if v == nil {
+		return &Buffer{
+			B: make([]byte, 0, p.Size),
+		}
+	}
+	return v.(*Buffer)
+}
+
+// Release returns byte buffer to the pool.
+//
+// Buffer.B mustn't be touched after returning it to the pool.
+// Otherwise data races occur.
+func (p *Pool) Release(b *Buffer) {
+	b.Reset()
+	p.p.Put(b)
+}
+
 // Write implements io.Writer - it appends p to ByteBuffer.B
 func (b *Buffer) Write(p []byte) (int, error) {
 	return b.Append(p), nil
@@ -41,9 +79,17 @@ func (b *Buffer) Reset() {
 	b.B = b.B[:0]
 }
 
+func (b *Buffer) Grow(s int) {
+	n := len(b.B) + s
+	for cap(b.B) < n {
+		b.B = append(b.B[:cap(b.B)], 0)
+	}
+	b.B = b.B[:n]
+}
+
 // Acquire returns an empty byte buffer from the pool.
 //
-// Acquired byte buffer may be returned to the pool via ReleaseByteBuffer call.
+// Acquired byte buffer may be returned to the pool via Release call.
 // This reduces the number of memory allocations required for byte buffer
 // management.
 func Acquire() *Buffer {
@@ -58,7 +104,7 @@ func Acquire() *Buffer {
 
 // Release returns byte buffer to the pool.
 //
-// ByteBuffer.B mustn't be touched after returning it to the pool.
+// Buffer.B mustn't be touched after returning it to the pool.
 // Otherwise data races occur.
 func Release(b *Buffer) {
 	b.B = b.B[:0]
