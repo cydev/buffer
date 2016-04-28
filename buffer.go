@@ -79,10 +79,14 @@ func (b *Buffer) Reset() {
 	b.B = b.B[:0]
 }
 
+// Grow adds s to buffer length.
 func (b *Buffer) Grow(s int) {
+	if s < 0 {
+		panic("cannot grow to negative value")
+	}
 	n := len(b.B) + s
 	for cap(b.B) < n {
-		b.B = append(b.B[:cap(b.B)], 0)
+		b.B = append(b.B, 0)
 	}
 	b.B = b.B[:n]
 }
